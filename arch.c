@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -9,7 +10,7 @@
 FILE *archive;
 
 
-void arch(char *path, char *dname) {
+void pack(char *path, char *dname) {
 	
 	DIR *dir;
 	struct dirent *entry;
@@ -21,8 +22,6 @@ void arch(char *path, char *dname) {
 	}
  	
 	chdir(path);
-	printf("{%s\n", dname);
-	
 	fwrite("{", 1, 1, archive);
 	fwrite(dname, 1, 255, archive);
 
@@ -33,29 +32,25 @@ void arch(char *path, char *dname) {
 		lstat(entry->d_name, &statbuf);
 		
 		if (S_ISDIR(statbuf.st_mode))  
-			arch(entry->d_name, entry->d_name);	
+			pack(entry->d_name, entry->d_name);	
 		else {
-			printf("%ld%s\n", statbuf.st_size, entry->d_name);
 			fwrite("f", 1, 1, archive);
 			fwrite(&statbuf.st_size, sizeof(size_t), 1, archive);
 			fwrite(&entry->d_name, 1, 255, archive);
 			FILE *file = fopen(entry->d_name, "rb");
-			char buf[1];
-			size_t nb;
-			while ((nb = fread(buf, 1, statbuf.st_size, file)) != 0) {
-				fwrite(buf, 1, statbuf.st_size, archive);
-			}
+			char *buf = malloc(statbuf.st_size);
+			fread(buf, 1, statbuf.st_size, file);
+			fwrite(buf, 1, statbuf.st_size, archive);
 			fclose(file);
 		}
 	}
-	printf("}\n");
 	fwrite("}", 1, 1, archive);
 	closedir(dir);
 	chdir("..");
 }
 
 
-void unarch(char *path) {
+void unpack(char *path) {
 	char name[255];
 	char flag;
 	size_t n;
@@ -72,11 +67,11 @@ void unarch(char *path) {
 		else {
 			size_t size;
 			FILE *file;
-			char buf[1];
 			size_t nb;
 			fread(&size, sizeof(size_t), 1, archive);
 			fread(name, 1, 255, archive);
 			file = fopen(name, "wb");
+			char *buf = malloc(size);
 			fread(buf, 1, size, archive);
 			fwrite(buf, 1, size, file);
 			fclose(file);
@@ -86,19 +81,17 @@ void unarch(char *path) {
 
 
 void main(int argc, char* argv[]) {
-	if (argc == 4) {
-		if (strcmp(argv[1], "pack") == 0) {
-			archive = fopen(argv[3], "wb");
-			arch(argv[2], strrchr(argv[2], '/') + 1);
-			fclose(archive);
-		}
-		else if (strcmp(argv[1], "unpack") == 0) {
-			archive = fopen(argv[2], "rb");
-			unarch(argv[3]);
-			fclose(archive);
-		}
-		else printf("wrong parameters! \n arch pack [directory to packaging] [path for archive file including file name]\n arch unpack [path for archive file] [path for unpackaging]\n");
+	if (argc == 3 && strcmp(argv[1], "pack") == 0) {
+		char *name = strrchr(argv[2], '/') + 1;
+		archive = fopen(name, "wb");
+		pack(argv[2], name);
+		fclose(archive);
 	}
-	else printf("wrong number of arguments! \n arch pack [directory to packaging] [path for archive file including file name]\n arch unpack [path for archive file] [path for unpackaging]\n");
+	else if (argc == 4 && strcmp(argv[1], "unpack") == 0) {
+		archive = fopen(argv[2], "rb");
+		unpack(argv[3]);
+		fclose(archive);
+	}
+	else printf("wrong parameters!\n arch pack [directory to packaging]\narch unpack [archive file] [path for unpackaging]\n");
 }
 
