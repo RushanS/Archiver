@@ -24,9 +24,9 @@ void pack(char *path, char *dname)
 	}
 	chdir(path);
 	if (write(archive, "{", 1) <= 0)
-		printf("error");
+		error();
 	if (write(archive, dname, NAME_SIZE))
-		printf("error");
+		error();
 	while (entry = readdir(dir)) {
 		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
 			continue;
@@ -38,18 +38,24 @@ void pack(char *path, char *dname)
 			int file;
 			char *buf;
 
-			write(archive, "f", 1);
-			write(archive, &statbuf.st_size, sizeof(size_t));
-			write(archive, &entry->d_name, NAME_SIZE);
+			if (write(archive, "f", 1) != 1)
+				error();
+			if (write(archive, &statbuf.st_size, sizeof(size_t)) != sizeof(size_t))
+				error();
+			if (write(archive, &entry->d_name, NAME_SIZE) != NAME_SIZE)
+				error();
 			file = open(entry->d_name, O_RDONLY);
 			buf = malloc(statbuf.st_size);
-			read(file, buf, statbuf.st_size);
-			write(archive, buf, statbuf.st_size);
+			if (read(file, buf, statbuf.st_size) != statbuf.st_size)
+				error();
+			if (write(archive, buf, statbuf.st_size) != statbuf.st_size)
+				error();
 			close(file);
 			free(buf);
 		}
 	}
-	write(archive, "}", 1);
+	if (write(archive, "}", 1) != 1)
+		error();
 	closedir(dir);
 	chdir("..");
 }
@@ -63,7 +69,8 @@ void unpack(char *path)
 	chdir(path);
 	while ((n = read(archive, &flag, 1)) != 0) {
 		if (flag == '{') {
-			read(archive, name, NAME_SIZE);
+			if (read(archive, name, NAME_SIZE) != NAME_SIZE)
+				error();
 			mkdir(name, S_IRUSR|S_IWUSR|S_IXUSR|S_IROTH);
 			chdir(name);
 		} else if (flag == '}') {
@@ -74,16 +81,26 @@ void unpack(char *path)
 			int file;
 			char *buf;
 
-			read(archive, &size, sizeof(size_t));
-			read(archive, name, NAME_SIZE);
+			if (read(archive, &size, sizeof(size_t)) != sizeof(size_t))
+				error();
+			if (read(archive, name, NAME_SIZE) != NAME_SIZE)
+				error();
 			file = open(name, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR|S_IXUSR|S_IROTH);
 			buf = malloc(size);
-			read(archive, buf, size);
-			write(file, buf, size);
+			if (read(archive, buf, size) != size)
+				error();
+			if (write(file, buf, size) != size)
+				error();
 			close(file);
 			free(buf);
 		}
 	}
+}
+
+void error()
+{
+	printf("error !!!");
+	exit(0);
 }
 
 void main(int argc, char *argv[])
