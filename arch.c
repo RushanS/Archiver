@@ -11,6 +11,11 @@
 
 int archive;
 
+void alerterror()
+{
+	printf("error !!!");
+	exit(0);
+}
 
 void pack(char *path, char *dname)
 {
@@ -24,9 +29,9 @@ void pack(char *path, char *dname)
 	}
 	chdir(path);
 	if (write(archive, "{", 1) <= 0)
-		error();
-	if (write(archive, dname, NAME_SIZE))
-		error();
+		alerterror();
+	if (write(archive, dname, NAME_SIZE) != NAME_SIZE)
+		alerterror();
 	while (entry = readdir(dir)) {
 		if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
 			continue;
@@ -39,23 +44,23 @@ void pack(char *path, char *dname)
 			char *buf;
 
 			if (write(archive, "f", 1) != 1)
-				error();
+				alerterror();
 			if (write(archive, &statbuf.st_size, sizeof(size_t)) != sizeof(size_t))
-				error();
+				alerterror();
 			if (write(archive, &entry->d_name, NAME_SIZE) != NAME_SIZE)
-				error();
+				alerterror();
 			file = open(entry->d_name, O_RDONLY);
 			buf = malloc(statbuf.st_size);
 			if (read(file, buf, statbuf.st_size) != statbuf.st_size)
-				error();
+				alerterror();
 			if (write(archive, buf, statbuf.st_size) != statbuf.st_size)
-				error();
+				alerterror();
 			close(file);
 			free(buf);
 		}
 	}
 	if (write(archive, "}", 1) != 1)
-		error();
+		alerterror();
 	closedir(dir);
 	chdir("..");
 }
@@ -70,7 +75,7 @@ void unpack(char *path)
 	while ((n = read(archive, &flag, 1)) != 0) {
 		if (flag == '{') {
 			if (read(archive, name, NAME_SIZE) != NAME_SIZE)
-				error();
+				alerterror();
 			mkdir(name, S_IRUSR|S_IWUSR|S_IXUSR|S_IROTH);
 			chdir(name);
 		} else if (flag == '}') {
@@ -82,25 +87,19 @@ void unpack(char *path)
 			char *buf;
 
 			if (read(archive, &size, sizeof(size_t)) != sizeof(size_t))
-				error();
+				alerterror();
 			if (read(archive, name, NAME_SIZE) != NAME_SIZE)
-				error();
+				alerterror();
 			file = open(name, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR|S_IXUSR|S_IROTH);
 			buf = malloc(size);
 			if (read(archive, buf, size) != size)
-				error();
+				alerterror();
 			if (write(file, buf, size) != size)
-				error();
+				alerterror();
 			close(file);
 			free(buf);
 		}
 	}
-}
-
-void error()
-{
-	printf("error !!!");
-	exit(0);
 }
 
 void main(int argc, char *argv[])
