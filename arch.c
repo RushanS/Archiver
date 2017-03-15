@@ -14,9 +14,9 @@ int archive;
 void alerterror()
 {
 	printf("error !!!");
-	exit(0);
+	exit(1);
 }
-
+/*ffffff*/
 void pack(char *path, char *dname)
 {
 	struct dirent *entry;
@@ -108,7 +108,7 @@ void main(int argc, char *argv[])
 		char *name = strrchr(argv[2], '/') + 1;
 		char filename[NAME_SIZE];
 
-		strncat(filename, name, NAME_SIZE - 5);
+		strncat(filename, name, 250);
 		strncat(filename, ".arch", 5);
 		archive = open(filename, O_WRONLY|O_CREAT, S_IRUSR|S_IWUSR|S_IXUSR|S_IROTH);
 		pack(argv[2], name);
